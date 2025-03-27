@@ -10,10 +10,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func helloGoHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "Hello net/http!")
-}
-
 func putHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["key"]
@@ -63,7 +59,6 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/", helloGoHandler)
 	r.HandleFunc("/v1/key/{key}", putHandler).Methods("PUT")
 	r.HandleFunc("/v1/key/{key}", getHandler).Methods("GET")
 	r.HandleFunc("/v1/key/{key}", deleteHandler).Methods("DELETE")
