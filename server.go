@@ -10,6 +10,38 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var logger TransactionLogger
+
+func initializeTransactionLog() error {
+	var err error
+	logger, err = NewFileTransactionLogger("transaction.log")
+	if err != nil {
+		return fmt.Errorf("failed to create event logger: %w", err)
+	}
+
+	events, errors := logger.ReadEvents()
+
+	e := Event{}
+	ok := true
+
+	for ok && err == nil {
+		select {
+		case err, ok = <-errors: // Retrieve any errors
+		case e, ok = <-events:
+			switch e.EventType {
+			case EventDelete: // Got a DELETE event!
+				err = Delete(e.Key)
+			case EventPut: // Got a PUT event!
+				err = Put(e.Key, e.Value)
+			}
+		}
+	}
+
+	logger.Run()
+
+	return err
+}
+
 func putHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["key"]
@@ -25,7 +57,7 @@ func putHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	logger.WritePut(key, string(value))
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -36,7 +68,7 @@ func deleteHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-
+	logger.WriteDelete(key)
 	log.Printf("DELETE key=%s\n", key)
 }
 
@@ -58,6 +90,7 @@ func getHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	initializeTransactionLog()
 	r := mux.NewRouter()
 	r.HandleFunc("/v1/key/{key}", putHandler).Methods("PUT")
 	r.HandleFunc("/v1/key/{key}", getHandler).Methods("GET")
