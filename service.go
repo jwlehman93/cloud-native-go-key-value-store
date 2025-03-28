@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 )
@@ -14,13 +15,9 @@ var logger TransactionLogger
 
 func initializeTransactionLog() error {
 	var err error
-	// logger, err = NewPostgresTransactionLogger(PostgresDBParams{
-	// 	dbName:   "db-name",
-	// 	host:     "localhost",
-	// 	user:     "db-user",
-	// 	password: "db-password",
-	// })
-	logger, err = NewFileTransactionLogger("transaction.log")
+	connStr := os.Getenv("DATABASE_URL")
+	logger, err = NewPostgresTransactionLogger(connStr)
+	//		logger, err = NewFileTransactionLogger("transaction.log")
 	if err != nil {
 		return fmt.Errorf("failed to create event logger: %w", err)
 	}

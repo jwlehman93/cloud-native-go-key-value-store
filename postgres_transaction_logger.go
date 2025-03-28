@@ -20,12 +20,14 @@ type PostgresDBParams struct {
 	password string
 }
 
-func NewPostgresTransactionLogger(config PostgresDBParams) (TransactionLogger,
-	error) {
-
+func NewPostgresTransactionLoggerWithConfig(config PostgresDBParams) (TransactionLogger, error) {
 	connStr := fmt.Sprintf("host=%s dbname=%s user=%s password=%s",
 		config.host, config.dbName, config.user, config.password)
+	return NewPostgresTransactionLogger(connStr)
+}
 
+func NewPostgresTransactionLogger(connStr string) (TransactionLogger,
+	error) {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open db: %w", err)
@@ -56,10 +58,10 @@ func (l *PostgresTransactionLogger) Run() {
 	l.events = events
 	errors := make(chan error, 1)
 	l.errors = errors
-	insertEventQuery := `INSERT INTO transactions (event_type, key, value) VALUES (@event_type, @key, @value);`
+	insertEventQuery := `INSERT INTO transactions (event_type, key, value) VALUES ($1, $2, $3);`
 	go func() {
 		for e := range events {
-			_, err := l.db.Exec(insertEventQuery, sql.Named("event_type", e.EventType), sql.Named("key", e.Key), sql.Named("value", e.Value))
+			_, err := l.db.Exec(insertEventQuery, e.EventType, e.Key, e.Value)
 			if err != nil {
 				errors <- err
 				return
@@ -74,7 +76,7 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	go func() {
 		defer close(outEvents)
 		defer close(outErrors)
-		selectQuery := "SELECT sequence, event_type, key, value) FROM transactions ORDER BY sequence"
+		selectQuery := "SELECT (sequence, event_type, key, value) FROM transactions ORDER BY sequence"
 		rows, err := l.db.Query(selectQuery)
 		if err != nil {
 			outErrors <- err
@@ -103,7 +105,7 @@ func (l *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 func (l *PostgresTransactionLogger) verifyTableExists() (bool, error) {
 	const table = "transactions"
-	rows, err := l.db.Query("SELECT to regclass(@table_name)", sql.Named("table_name", table))
+	rows, err := l.db.Query("SELECT to_regclass($1)", table)
 	if err != nil {
 		return false, err
 	}
@@ -119,10 +121,10 @@ func (l *PostgresTransactionLogger) verifyTableExists() (bool, error) {
 
 func (l *PostgresTransactionLogger) createTable() error {
 	createTableQuery := `CREATE TABLE IF NOT EXISTS transactions (
-							sequence SERIAL PRIMARY KEY
-							event_type INT
-							key STRING
-							value STRING
+							sequence SERIAL PRIMARY KEY,
+							event_type INT,
+							key TEXT,
+							value TEXT
 						);`
 	_, err := l.db.Exec(createTableQuery)
 	if err != nil {
