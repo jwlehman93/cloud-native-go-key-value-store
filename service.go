@@ -14,12 +14,13 @@ var logger TransactionLogger
 
 func initializeTransactionLog() error {
 	var err error
-	logger, err = NewPostgresTransactionLogger(PostgresDBParams{
-		dbName:   "db-name",
-		host:     "localhost",
-		user:     "db-user",
-		password: "db-password",
-	})
+	// logger, err = NewPostgresTransactionLogger(PostgresDBParams{
+	// 	dbName:   "db-name",
+	// 	host:     "localhost",
+	// 	user:     "db-user",
+	// 	password: "db-password",
+	// })
+	logger, err = NewFileTransactionLogger("transaction.log")
 	if err != nil {
 		return fmt.Errorf("failed to create event logger: %w", err)
 	}
@@ -101,5 +102,5 @@ func main() {
 	r.HandleFunc("/v1/key/{key}", getHandler).Methods("GET")
 	r.HandleFunc("/v1/key/{key}", deleteHandler).Methods("DELETE")
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Fatal(http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", r))
 }

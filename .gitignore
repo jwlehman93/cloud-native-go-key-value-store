@@ -25,3 +25,5 @@ go.work.sum
 .env
 
 cloud-native-go-key-value-store
+cert.pem
+key.pem
