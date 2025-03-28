@@ -27,3 +27,5 @@ go.work.sum
 cloud-native-go-key-value-store
 cert.pem
 key.pem
+kvs
+transaction.log
